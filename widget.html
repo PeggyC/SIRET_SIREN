@@ -173,13 +173,18 @@ const COLONNES = {
   // Colonne contenant le SIREN
   SIREN: "SIREN",
 
-  // Informations à compléter
-  RAISON_SOCIALE: "Raison_sociale",
+  // Informations entreprise
+  RAISON_SOCIALE: "Dénomination",
+  DATE_CREATION: "date_creation",
+  DATE_FERMETURE: "date_fermeture",
+  CATEGORIE: "categorie_entreprise",
+  FORME_JURIDIQUE: "forme_juridique",
   APE: "APE",
+
+  // Adresse
   ADRESSE: "Adresse",
   CODE_POSTAL: "Code_postal",
-  COMMUNE: "Commune",
-  ETAT: "Etat_administratif"
+  VILLE: "Ville"
 };
 
 
@@ -528,16 +533,10 @@ async function searchCompany() {
 
 function extractCompanyData(result) {
 
-  const siege =
-    result.siege || {};
+  const siege = result.siege || {};
 
-
-  /*
-   * Construction de l'adresse
-   */
-
+  // Construction de l'adresse
   let adresse = "";
-
 
   if (siege.numero_voie) {
     adresse += siege.numero_voie + " ";
@@ -550,7 +549,6 @@ function extractCompanyData(result) {
   if (siege.libelle_voie) {
     adresse += siege.libelle_voie;
   }
-
 
   adresse = adresse.trim();
 
@@ -568,6 +566,22 @@ function extractCompanyData(result) {
       result.nom_raison_sociale ||
       "",
 
+    DATE_CREATION:
+      result.date_creation ||
+      "",
+
+    DATE_FERMETURE:
+      siege.date_fermeture ||
+      "",
+
+    CATEGORIE:
+      result.categorie_entreprise ||
+      "",
+
+    FORME_JURIDIQUE:
+      result.nature_juridique ||
+      "",
+
     APE:
       siege.activite_principale ||
       "",
@@ -579,18 +593,12 @@ function extractCompanyData(result) {
       siege.code_postal ||
       "",
 
-    COMMUNE:
+    VILLE:
       siege.libelle_commune ||
-      "",
-
-    ETAT:
-      result.etat_administratif ||
       ""
 
   };
-
 }
-
 
 /* ============================================================
    AFFICHAGE
@@ -693,219 +701,119 @@ function showStatus(message, type) {
    MISE A JOUR DE GRIST
    ============================================================ */
 
+
 async function updateGrist() {
 
   if (!currentRecord || !currentResult) {
-
     return;
-
   }
 
-
-  const data =
-    extractCompanyData(currentResult);
-
-
-  /*
-   * On prépare uniquement les colonnes qui existent
-   * et qui sont actuellement vides.
-   */
+  const data = extractCompanyData(currentResult);
 
   const updates = {};
 
 
-  /*
-   * SIREN
-   */
-
+  // SIREN
   if (
     data.SIREN &&
     isEmpty(currentRecord[COLONNES.SIREN])
   ) {
-
-    updates[COLONNES.SIREN] =
-      data.SIREN;
-
+    updates[COLONNES.SIREN] = data.SIREN;
   }
 
 
-  /*
-   * SIRET
-   */
-
+  // SIRET
   if (
     data.SIRET &&
     isEmpty(currentRecord[COLONNES.SIRET])
   ) {
-
-    updates[COLONNES.SIRET] =
-      data.SIRET;
-
+    updates[COLONNES.SIRET] = data.SIRET;
   }
 
 
-  /*
-   * Raison sociale
-   */
-
+  // Raison sociale
   if (
     data.RAISON_SOCIALE &&
-    isEmpty(
-      currentRecord[
-        COLONNES.RAISON_SOCIALE
-      ]
-    )
+    isEmpty(currentRecord[COLONNES.RAISON_SOCIALE])
   ) {
-
-    updates[
-      COLONNES.RAISON_SOCIALE
-    ] =
+    updates[COLONNES.RAISON_SOCIALE] =
       data.RAISON_SOCIALE;
-
   }
 
 
-  /*
-   * APE
-   */
-
+  // APE
   if (
     data.APE &&
-    isEmpty(
-      currentRecord[COLONNES.APE]
-    )
+    isEmpty(currentRecord[COLONNES.APE])
   ) {
-
-    updates[
-      COLONNES.APE
-    ] =
-      data.APE;
-
+    updates[COLONNES.APE] = data.APE;
   }
 
 
-  /*
-   * Adresse
-   */
-
+  // Adresse
   if (
     data.ADRESSE &&
-    isEmpty(
-      currentRecord[COLONNES.ADRESSE]
-    )
+    isEmpty(currentRecord[COLONNES.ADRESSE])
   ) {
-
-    updates[
-      COLONNES.ADRESSE
-    ] =
-      data.ADRESSE;
-
+    updates[COLONNES.ADRESSE] = data.ADRESSE;
   }
 
 
-  /*
-   * Code postal
-   */
-
+  // Code postal
   if (
     data.CODE_POSTAL &&
-    isEmpty(
-      currentRecord[
-        COLONNES.CODE_POSTAL
-      ]
-    )
+    isEmpty(currentRecord[COLONNES.CODE_POSTAL])
   ) {
-
-    updates[
-      COLONNES.CODE_POSTAL
-    ] =
+    updates[COLONNES.CODE_POSTAL] =
       data.CODE_POSTAL;
-
   }
 
 
-  /*
-   * Commune
-   */
-
+  // Commune
   if (
     data.COMMUNE &&
-    isEmpty(
-      currentRecord[
-        COLONNES.COMMUNE
-      ]
-    )
+    isEmpty(currentRecord[COLONNES.COMMUNE])
   ) {
-
-    updates[
-      COLONNES.COMMUNE
-    ] =
+    updates[COLONNES.COMMUNE] =
       data.COMMUNE;
-
   }
 
 
-  /*
-   * Etat administratif
-   */
-
+  // Etat administratif
   if (
     data.ETAT &&
-    isEmpty(
-      currentRecord[
-        COLONNES.ETAT
-      ]
-    )
+    isEmpty(currentRecord[COLONNES.ETAT])
   ) {
-
-    updates[
-      COLONNES.ETAT
-    ] =
+    updates[COLONNES.ETAT] =
       data.ETAT;
-
   }
 
 
-  /*
-   * Rien à mettre à jour
-   */
-
-  if (
-    Object.keys(updates).length === 0
-  ) {
+  if (Object.keys(updates).length === 0) {
 
     showStatus(
-      "Aucune cellule vide à compléter. Rien n'a été modifié.",
+      "Aucune cellule vide à compléter.",
       "warning"
     );
 
     return;
-
   }
 
 
   try {
 
     /*
-     * currentRecord.id = identifiant de la ligne Grist.
-     *
-     * On utilise UpdateRecord pour modifier uniquement
-     * les cellules nécessaires.
+     * selectedTable.update() met à jour la ligne
+     * sélectionnée dans la table du widget.
      */
 
-    await grist.docApi.applyUserActions([
-
-      [
-        "UpdateRecord",
-        currentRecord.id,
-        updates
-      ]
-
-    ]);
+    await grist.selectedTable.update({
+      [currentRecord.id]: updates
+    });
 
 
     showStatus(
-      "✓ Grist a été mis à jour. Les données existantes n'ont pas été écrasées.",
+      "✓ Grist a été mis à jour.",
       "success"
     );
 
@@ -914,16 +822,16 @@ async function updateGrist() {
 
     console.error(error);
 
-
     showStatus(
       "Erreur lors de la mise à jour de Grist : " +
       error.message,
       "error"
     );
-
   }
-
 }
+
+
+  
 
 
 /* ============================================================
