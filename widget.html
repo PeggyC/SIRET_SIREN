@@ -640,10 +640,16 @@
 
       // Écriture dans Grist
       const table = grist.getTable();
-
+      
+      console.log("ID de la ligne :", currentRecord.id);
+      console.log("Données à écrire :", updates);
+      console.log("Colonnes :", COLONNES);
+      
       await table.update({
         [currentRecord.id]: updates
       });
+      
+      console.log("Mise à jour Grist terminée");
 
       // Mise à jour locale de currentRecord 
       // pour garder le widget synchronisé 
