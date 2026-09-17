@@ -493,185 +493,169 @@
   // MISE À JOUR DE GRIST
   // ============================================================
 
-  async function updateGrist() {
+async function updateGrist(result) {
 
-    if (!currentRecord || !currentResult) {
+  if (!currentRecord) {
+    throw new Error("Aucune ligne Grist sélectionnée.");
+  }
 
-      alert("Aucune donnée à enregistrer.");
+  const data = extractCompanyData(result);
 
-      return;
-    }
-
-    try {
-
-      const data =
-        extractCompanyData(currentResult);
-
-      const updates = {};
+  const updates = {};
 
 
-      // SIREN
-      if (
-        data.SIREN &&
-        isEmpty(currentRecord[COLONNES.SIREN])
-      ) {
-        updates[COLONNES.SIREN] = data.SIREN;
-      }
-
-
-      // SIRET
-      if (
-        data.SIRET &&
-        isEmpty(currentRecord[COLONNES.SIRET])
-      ) {
-        updates[COLONNES.SIRET] = data.SIRET;
-      }
-
-
-      // Dénomination
-      if (
-        data.RAISON_SOCIALE &&
-        isEmpty(currentRecord[COLONNES.RAISON_SOCIALE])
-      ) {
-        updates[COLONNES.RAISON_SOCIALE] =
-          data.RAISON_SOCIALE;
-      }
-
-
-      // Sigle
-      if (
-        data.SIGLE &&
-        isEmpty(currentRecord[COLONNES.SIGLE])
-      ) {
-        updates[COLONNES.SIGLE] =
-          data.SIGLE;
-      }
-
-
-      // Date création
-      if (
-        data.DATE_CREATION &&
-        isEmpty(currentRecord[COLONNES.DATE_CREATION])
-      ) {
-        updates[COLONNES.DATE_CREATION] =
-          data.DATE_CREATION;
-      }
-
-
-      // Date fermeture
-      if (
-        data.DATE_FERMETURE &&
-        isEmpty(currentRecord[COLONNES.DATE_FERMETURE])
-      ) {
-        updates[COLONNES.DATE_FERMETURE] =
-          data.DATE_FERMETURE;
-      }
-
-
-      // Catégorie
-      if (
-        data.CATEGORIE &&
-        isEmpty(currentRecord[COLONNES.CATEGORIE])
-      ) {
-        updates[COLONNES.CATEGORIE] =
-          data.CATEGORIE;
-      }
-
-
-      // Forme juridique
-      if (
-        data.FORME_JURIDIQUE &&
-        isEmpty(currentRecord[COLONNES.FORME_JURIDIQUE])
-      ) {
-        updates[COLONNES.FORME_JURIDIQUE] =
-          data.FORME_JURIDIQUE;
-      }
-
-
-      // APE
-      if (
-        data.APE &&
-        isEmpty(currentRecord[COLONNES.APE])
-      ) {
-        updates[COLONNES.APE] =
-          data.APE;
-      }
-
-
-      // Adresse
-      if (
-        data.ADRESSE &&
-        isEmpty(currentRecord[COLONNES.ADRESSE])
-      ) {
-        updates[COLONNES.ADRESSE] =
-          data.ADRESSE;
-      }
-
-
-      // Code postal
-      if (
-        data.CODE_POSTAL &&
-        isEmpty(currentRecord[COLONNES.CODE_POSTAL])
-      ) {
-        updates[COLONNES.CODE_POSTAL] =
-          data.CODE_POSTAL;
-      }
-
-
-      // Ville
-      if (
-        data.VILLE &&
-        isEmpty(currentRecord[COLONNES.VILLE])
-      ) {
-        updates[COLONNES.VILLE] =
-          data.VILLE;
-      }
-
-
-      // Rien à modifier
-      if (Object.keys(updates).length === 0) {
-
-        document.getElementById("status").textContent =
-          "Aucune cellule vide à compléter.";
-
-        return;
-      }
-
-
-      // Écriture dans Grist
-      const table = grist.getTable();
-
-      await table.update({
-        [currentRecord.id]: updates
-      });
-
-
-      document.getElementById("status").className =
-        "success";
-
-      document.getElementById("status").textContent =
-        Object.keys(updates).length +
-        " champ(s) mis à jour dans Grist.";
-
-
-      // Rechargement de l'enregistrement
-      currentRecord =
-        await grist.getTable().getRecord(currentRecord.id);
-
-    } catch (error) {
-
-      console.error(error);
-
-      document.getElementById("status").className =
-        "error";
-
-      document.getElementById("status").textContent =
-        "Erreur lors de la mise à jour : " +
-        error.message;
-    }
+  // SIREN
+  if (
+    data.SIREN &&
+    isEmpty(currentRecord[COLONNES.SIREN])
+  ) {
+    updates[COLONNES.SIREN] = data.SIREN;
   }
 
 
+  // SIRET
+  if (
+    data.SIRET &&
+    isEmpty(currentRecord[COLONNES.SIRET])
+  ) {
+    updates[COLONNES.SIRET] = data.SIRET;
+  }
+
+
+  // Dénomination
+  if (
+    data.RAISON_SOCIALE &&
+    isEmpty(currentRecord[COLONNES.RAISON_SOCIALE])
+  ) {
+    updates[COLONNES.RAISON_SOCIALE] =
+      data.RAISON_SOCIALE;
+  }
+
+
+  // Sigle
+  if (
+    data.SIGLE &&
+    isEmpty(currentRecord[COLONNES.SIGLE])
+  ) {
+    updates[COLONNES.SIGLE] =
+      data.SIGLE;
+  }
+
+
+  // Date création
+  if (
+    data.DATE_CREATION &&
+    isEmpty(currentRecord[COLONNES.DATE_CREATION])
+  ) {
+    updates[COLONNES.DATE_CREATION] =
+      data.DATE_CREATION;
+  }
+
+
+  // Date fermeture
+  if (
+    data.DATE_FERMETURE &&
+    isEmpty(currentRecord[COLONNES.DATE_FERMETURE])
+  ) {
+    updates[COLONNES.DATE_FERMETURE] =
+      data.DATE_FERMETURE;
+  }
+
+
+  // Catégorie entreprise
+  if (
+    data.CATEGORIE &&
+    isEmpty(currentRecord[COLONNES.CATEGORIE])
+  ) {
+    updates[COLONNES.CATEGORIE] =
+      data.CATEGORIE;
+  }
+
+
+  // Forme juridique
+  // On conserve le CODE INSEE, par exemple 4120
+  if (
+    data.FORME_JURIDIQUE &&
+    isEmpty(currentRecord[COLONNES.FORME_JURIDIQUE])
+  ) {
+    updates[COLONNES.FORME_JURIDIQUE] =
+      data.FORME_JURIDIQUE;
+  }
+
+
+  // APE
+  if (
+    data.APE &&
+    isEmpty(currentRecord[COLONNES.APE])
+  ) {
+    updates[COLONNES.APE] =
+      data.APE;
+  }
+
+
+  // Adresse
+  if (
+    data.ADRESSE &&
+    isEmpty(currentRecord[COLONNES.ADRESSE])
+  ) {
+    updates[COLONNES.ADRESSE] =
+      data.ADRESSE;
+  }
+
+
+  // Code postal
+  if (
+    data.CODE_POSTAL &&
+    isEmpty(currentRecord[COLONNES.CODE_POSTAL])
+  ) {
+    updates[COLONNES.CODE_POSTAL] =
+      data.CODE_POSTAL;
+  }
+
+
+  // Ville
+  if (
+    data.VILLE &&
+    isEmpty(currentRecord[COLONNES.VILLE])
+  ) {
+    updates[COLONNES.VILLE] =
+      data.VILLE;
+  }
+
+
+  // Rien à modifier
+  if (Object.keys(updates).length === 0) {
+    return 0;
+  }
+
+
+  // ==========================================================
+  // ÉCRITURE DIRECTE DANS GRIST
+  // ==========================================================
+
+  await grist.docApi.applyUserActions([
+
+    [
+      "UpdateRecord",
+
+      // ⚠️ À MODIFIER avec le nom EXACT de ta table
+      "SIREN_Import",
+
+      currentRecord.id,
+
+      updates
+    ]
+
+  ]);
+
+
+  return Object.keys(updates).length;
+}
+
+
+
+
+  
   // ============================================================
   // OUTILS
   // ============================================================
