@@ -656,7 +656,12 @@
 
       // Rechargement de l'enregistrement
       currentRecord =
-        await grist.getTable().getRecord(currentRecord.id);
+        await grist.getTable().updateRecord(currentRecord.id, {
+          SIREN: siren,
+          SIRET: siret,
+          Nom: nom,
+          Adresse: adresse
+        });
 
     } catch (error) {
 
