@@ -503,9 +503,7 @@
   async function updateGrist() {
 
     if (!currentRecord || !currentResult) {
-
       alert("Aucune donnée à enregistrer.");
-
       return;
     }
 
@@ -635,6 +633,11 @@
       }
 
 
+      // Vérification0
+      console.log("ID de la ligne :", currentRecord.id);
+      console.log("Données INSEE :", data);
+      console.log("Données à écrire v0 :", updates);
+
       // Rien à modifier
       if (Object.keys(updates).length === 0) {
 
@@ -652,7 +655,7 @@
       // console.log("Données à écrire :", updates);
       // console.log("Colonnes :", COLONNES);
       console.log("ID utilisé pour la mise à jour :", currentRecordId);
-      console.log("Données à écrire :", updates);
+      console.log("Données à écrire : v1 ", updates);
 
       await table.update({
         [currentRecordId]: updates
