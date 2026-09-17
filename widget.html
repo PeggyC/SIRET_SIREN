@@ -114,7 +114,7 @@
 
   let currentRecord = null;
   let currentResult = null;
-
+  let currentRecordId = null;
 
   // ============================================================
   // CONNEXION À GRIST
@@ -127,7 +127,11 @@
   grist.onRecord(function(record) {
 
     currentRecord = record;
+    currentRecordId = record.id;
     currentResult = null;
+    
+    console.log("Record reçu :", record);
+    console.log("ID de la ligne :", currentRecordId);
 
     document.getElementById("updateBtn").disabled = true;
 
@@ -641,12 +645,14 @@
       // Écriture dans Grist
       const table = grist.getTable();
       
-      console.log("ID de la ligne :", currentRecord.id);
+      // console.log("ID de la ligne :", currentRecord.id);
+      // console.log("Données à écrire :", updates);
+      // console.log("Colonnes :", COLONNES);
+      console.log("ID utilisé pour la mise à jour :", currentRecordId);
       console.log("Données à écrire :", updates);
-      console.log("Colonnes :", COLONNES);
-      
+
       await table.update({
-        [currentRecord.id]: updates
+        [currentRecordId]: updates
       });
       
       console.log("Mise à jour Grist terminée");
@@ -672,16 +678,16 @@
       //  await grist.getTable().updateRecord(currentRecord.id, {
       //    SIREN: data.SIREN,
       //    SIRET: data.SIRET,
-     //     RAISON_SOCIALE: data.RAISON_SOCIALE,
+      //    RAISON_SOCIALE: data.RAISON_SOCIALE,
       //    SIGLE: data.SIGLE,
       //    DATE_CREATION: data.DATE_CREATION,
       //    DATE_FERMETURE: data.DATE_FERMETURE,
       //    CATEGORIE: data.CATEGORIE,
-       //   FORME_JURIDIQUE: data.FORME_JURIDIQUE,
-       //   APE: data.APE,
-       //   ADRESSE: data.ADRESSE,
-       //   CODE_POSTAL: data.CODE_POSTAL,
-       // });
+      //    FORME_JURIDIQUE: data.FORME_JURIDIQUE,
+      //    APE: data.APE,
+      //    ADRESSE: data.ADRESSE,
+      //    CODE_POSTAL: data.CODE_POSTAL,
+      //  });
 
     } catch (error) {
 
