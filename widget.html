@@ -2,64 +2,27 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recherche entreprise</title>
 
-  <title>Recherche SIRET / SIREN</title>
-
-  <!-- API Grist -->
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 15px;
-      color: #222;
-      background: white;
-      font-size: 14px;
+      margin: 20px;
+      color: #333;
     }
 
     h2 {
       margin-top: 0;
-      font-size: 18px;
-    }
-
-    .info {
-      background: #f5f7fa;
-      border-left: 4px solid #1976d2;
-      padding: 10px;
-      margin-bottom: 12px;
-    }
-
-    .status {
-      padding: 10px;
-      margin: 10px 0;
-      border-radius: 5px;
-      background: #f1f1f1;
-    }
-
-    .success {
-      background: #e8f5e9;
-      color: #1b5e20;
-    }
-
-    .warning {
-      background: #fff8e1;
-      color: #795548;
-    }
-
-    .error {
-      background: #ffebee;
-      color: #b71c1c;
     }
 
     button {
+      padding: 8px 14px;
+      margin: 5px 5px 5px 0;
       border: none;
       border-radius: 5px;
-      padding: 8px 13px;
-      margin-right: 6px;
       cursor: pointer;
-      font-weight: bold;
       background: #1976d2;
       color: white;
     }
@@ -73,984 +36,669 @@
       cursor: not-allowed;
     }
 
-    button.secondary {
-      background: #eeeeee;
-      color: #333;
-      border: 1px solid #ccc;
+    #status {
+      margin: 15px 0;
+      padding: 10px;
+      border-radius: 5px;
+      background: #f2f2f2;
+    }
+
+    .success {
+      background: #e8f5e9 !important;
+      color: #2e7d32;
+    }
+
+    .error {
+      background: #ffebee !important;
+      color: #c62828;
     }
 
     table {
-      width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
+      width: 100%;
+      margin-top: 15px;
     }
 
     td {
       padding: 7px;
       border-bottom: 1px solid #ddd;
-      vertical-align: top;
     }
 
     td:first-child {
-      width: 40%;
       font-weight: bold;
-      color: #666;
-    }
-
-    .result {
-      margin-top: 15px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      padding: 10px;
-    }
-
-    .small {
-      font-size: 11px;
-      color: #777;
-      margin-top: 15px;
+      width: 40%;
     }
   </style>
 </head>
 
 <body>
 
-<h2>🔎 Recherche entreprise</h2>
+  <h2>Recherche entreprise</h2>
 
-<div class="info">
-  Le widget recherche automatiquement un <strong>SIRET</strong>.
-  Si aucun SIRET n'est disponible, il utilise le <strong>SIREN</strong>.
-</div>
+  <div>
+    <button id="searchBtn" onclick="searchCompany()">
+      🔍 Rechercher
+    </button>
 
-<div id="selected">
-  Sélectionnez une ligne dans Grist.
-</div>
+    <button id="updateBtn" onclick="updateGrist()" disabled>
+      💾 Mettre à jour Grist
+    </button>
+  </div>
 
-<br>
+  <div id="status">
+    Sélectionnez une ligne contenant un SIRET ou un SIREN.
+  </div>
 
-<button id="searchButton" disabled>
-  🔎 Rechercher
-</button>
-
-<button id="updateButton" class="secondary" disabled>
-  ✓ Mettre à jour Grist
-</button>
-
-<div id="status" class="status">
-  En attente d'une ligne...
-</div>
-
-<div id="result" class="result" style="display:none;">
-  <strong>Informations trouvées</strong>
-
-  <table>
-    <tbody id="resultTable"></tbody>
-  </table>
-</div>
-
-<div class="small">
-  Source : API Recherche d'entreprises — DINUM / INSEE
-</div>
-
+  <div id="result"></div>
 
 <script>
 
-/* ============================================================
-   CONFIGURATION DES COLONNES GRIST
-   ============================================================ */
+  // ============================================================
+  // CONFIGURATION
+  // ============================================================
 
-const COLONNES = {
+  const COLONNES = {
+    SIRET: "SIRET",
+    SIREN: "SIREN",
+    RAISON_SOCIALE: "Dénomination",
+    SIGLE: "Sigle",
+    DATE_CREATION: "date_creation",
+    DATE_FERMETURE: "date_fermeture",
+    CATEGORIE: "categorie_entreprise",
+    FORME_JURIDIQUE: "forme_juridique",
+    APE: "APE",
+    ADRESSE: "Adresse",
+    CODE_POSTAL: "Code_postal",
+    VILLE: "Ville"
+  };
 
-  // Identifiants
-  SIRET: "SIRET",
-  SIREN: "SIREN",
+  let currentRecord = null;
+  let currentResult = null;
 
-  // Informations entreprise
-  RAISON_SOCIALE: "Dénomination",
-  SIGLE: "Sigle",
-  DATE_CREATION: "date_creation",
-  DATE_FERMETURE: "date_fermeture",
-  CATEGORIE: "categorie_entreprise",
-  FORME_JURIDIQUE: "forme_juridique",
-  APE: "APE",
 
-  // Adresse
-  ADRESSE: "Adresse",
-  CODE_POSTAL: "Code_postal",
-  VILLE: "Ville"
-};
+  // ============================================================
+  // CONNEXION À GRIST
+  // ============================================================
 
+  grist.ready({
+    requiredAccess: "full"
+  });
 
-/* ============================================================
-   VARIABLES
-   ============================================================ */
+  grist.onRecord(function(record) {
 
-let currentRecord = null;
-let currentResult = null;
+    currentRecord = record;
+    currentResult = null;
 
+    document.getElementById("updateBtn").disabled = true;
 
-/* ============================================================
-   INITIALISATION GRIST
-   ============================================================ */
+    updateInterface();
+  });
 
-grist.ready({
-  requiredAccess: "full"
-});
 
+  // ============================================================
+  // INTERFACE
+  // ============================================================
 
-/*
- * Grist nous transmet la ligne sélectionnée.
- */
-grist.onRecord(function(record) {
+  function updateInterface() {
 
-  currentRecord = record;
-  currentResult = null;
+    const status = document.getElementById("status");
+    const resultDiv = document.getElementById("result");
 
-  document.getElementById("result").style.display = "none";
+    resultDiv.innerHTML = "";
 
-  updateInterface();
+    if (!currentRecord) {
 
-});
-
-
-/* ============================================================
-   OUTILS
-   ============================================================ */
-
-function cleanNumber(value) {
-
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  return String(value).replace(/\D/g, "");
-}
-
-
-/*
- * Vérifie si une cellule est vide.
- */
-function isEmpty(value) {
-
-  return (
-    value === null ||
-    value === undefined ||
-    value === ""
-  );
-
-}
-
-
-/*
- * Echappement HTML
- */
-function escapeHtml(value) {
-
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-
-}
-
-
-/* ============================================================
-   FORMATAGE DES DATES
-   ============================================================ */
-
-function formatDate(date) {
-
-  if (!date) {
-    return "";
-  }
-
-  /*
-   * Conversion de YYYY-MM-DD
-   * vers DD/MM/YYYY
-   */
-  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-
-    const [annee, mois, jour] = date.split("-");
-
-    return `${jour}/${mois}/${annee}`;
-  }
-
-  return date;
-}
-
-
-/* ============================================================
-   DETERMINER SIRET OU SIREN
-   ============================================================ */
-
-function getIdentifier() {
-
-  if (!currentRecord) {
-    return null;
-  }
-
-
-  /*
-   * 1. PRIORITE AU SIRET
-   */
-
-  const siret = cleanNumber(
-    currentRecord[COLONNES.SIRET]
-  );
-
-  if (siret.length === 14) {
-
-    return {
-      type: "SIRET",
-      value: siret
-    };
-
-  }
-
-
-  /*
-   * 2. SINON SIREN
-   */
-
-  const siren = cleanNumber(
-    currentRecord[COLONNES.SIREN]
-  );
-
-  if (siren.length === 9) {
-
-    return {
-      type: "SIREN",
-      value: siren
-    };
-
-  }
-
-
-  return null;
-}
-
-
-/* ============================================================
-   MISE A JOUR DE L'INTERFACE
-   ============================================================ */
-
-function updateInterface() {
-
-  const selected =
-    document.getElementById("selected");
-
-  const searchButton =
-    document.getElementById("searchButton");
-
-  const updateButton =
-    document.getElementById("updateButton");
-
-
-  if (!currentRecord) {
-
-    selected.innerHTML =
-      "Sélectionnez une ligne dans Grist.";
-
-    searchButton.disabled = true;
-    updateButton.disabled = true;
-
-    return;
-  }
-
-
-  const identifier =
-    getIdentifier();
-
-
-  if (!identifier) {
-
-    selected.innerHTML =
-      "<strong>Ligne sélectionnée.</strong><br>" +
-      "Aucun SIRET (14 chiffres) ni SIREN (9 chiffres) valide.";
-
-    searchButton.disabled = true;
-    updateButton.disabled = true;
-
-    return;
-  }
-
-
-  selected.innerHTML =
-    "<strong>Ligne sélectionnée</strong><br>" +
-    identifier.type +
-    " utilisé : <strong>" +
-    escapeHtml(identifier.value) +
-    "</strong>";
-
-
-  searchButton.disabled = false;
-  updateButton.disabled = !currentResult;
-}
-
-
-/* ============================================================
-   RECHERCHE API
-   ============================================================ */
-
-async function searchCompany() {
-
-  const identifier =
-    getIdentifier();
-
-
-  if (!identifier) {
-
-    showStatus(
-      "Aucun SIRET ou SIREN valide trouvé.",
-      "warning"
-    );
-
-    return;
-  }
-
-
-  showStatus(
-    "Recherche en cours..."
-  );
-
-
-  document.getElementById("result").style.display =
-    "none";
-
-
-  currentResult = null;
-
-  document.getElementById(
-    "updateButton"
-  ).disabled = true;
-
-
-  try {
-
-    const url =
-      "https://recherche-entreprises.api.gouv.fr/search" +
-      "?q=" +
-      encodeURIComponent(identifier.value) +
-      "&page=1" +
-      "&per_page=10";
-
-
-    const response =
-      await fetch(url);
-
-
-    if (!response.ok) {
-
-      throw new Error(
-        "Erreur HTTP " + response.status
-      );
-
-    }
-
-
-    const data =
-      await response.json();
-
-
-    if (
-      !data.results ||
-      data.results.length === 0
-    ) {
-
-      showStatus(
-        "Aucune entreprise trouvée pour " +
-        identifier.value,
-        "warning"
-      );
+      status.className = "";
+      status.textContent =
+        "Sélectionnez une ligne contenant un SIRET ou un SIREN.";
 
       return;
     }
 
+    const identifier = getIdentifier();
 
-    /*
-     * Premier résultat par défaut
-     */
-    let result =
-      data.results[0];
+    if (!identifier) {
 
+      status.className = "error";
 
-    /*
-     * Pour un SIRET :
-     * recherche d'une correspondance exacte
-     */
-    if (identifier.type === "SIRET") {
+      status.textContent =
+        "Aucun SIRET ou SIREN valide trouvé dans la ligne sélectionnée.";
 
-      const exactMatch =
-        data.results.find(function(r) {
+      return;
+    }
 
-          return (
-            cleanNumber(
-              r.siege?.siret
-            ) === identifier.value
-          );
+    status.className = "";
 
-        });
+    status.textContent =
+      "Identifiant détecté : " +
+      identifier.value +
+      " (" +
+      identifier.type +
+      ")";
+  }
 
 
-      if (exactMatch) {
-        result = exactMatch;
+  // ============================================================
+  // RÉCUPÉRATION DU SIRET / SIREN
+  // ============================================================
+
+  function getIdentifier() {
+
+    if (!currentRecord) {
+      return null;
+    }
+
+    let siret = currentRecord[COLONNES.SIRET];
+    let siren = currentRecord[COLONNES.SIREN];
+
+    if (siret !== null && siret !== undefined) {
+
+      siret = String(siret).replace(/\s/g, "");
+
+      if (/^\d{14}$/.test(siret)) {
+
+        return {
+          type: "SIRET",
+          value: siret
+        };
       }
     }
 
+    if (siren !== null && siren !== undefined) {
 
-    currentResult = result;
+      siren = String(siren).replace(/\s/g, "");
 
+      if (/^\d{9}$/.test(siren)) {
 
-    displayResult(result);
+        return {
+          type: "SIREN",
+          value: siren
+        };
+      }
+    }
 
-
-    showStatus(
-      "Entreprise trouvée. Vérifie les informations puis clique sur « Mettre à jour Grist ».",
-      "success"
-    );
-
-
-    document.getElementById(
-      "updateButton"
-    ).disabled = false;
-
-
-  } catch (error) {
-
-    console.error(error);
-
-    showStatus(
-      "Erreur lors de la recherche : " +
-      error.message,
-      "error"
-    );
-
-  }
-}
-
-
-/* ============================================================
-   EXTRACTION DES DONNEES
-   ============================================================ */
-
-function extractCompanyData(result) {
-
-  const siege =
-    result.siege || {};
-
-
-  /*
-   * Construction de l'adresse
-   */
-
-  let adresse = "";
-
-
-  if (siege.numero_voie) {
-    adresse += siege.numero_voie + " ";
+    return null;
   }
 
 
-  if (siege.type_voie) {
-    adresse += siege.type_voie + " ";
+  // ============================================================
+  // RECHERCHE API
+  // ============================================================
+
+  async function searchCompany() {
+
+    const status = document.getElementById("status");
+    const resultDiv = document.getElementById("result");
+    const updateBtn = document.getElementById("updateBtn");
+
+    updateBtn.disabled = true;
+    currentResult = null;
+
+    const identifier = getIdentifier();
+
+    if (!identifier) {
+
+      status.className = "error";
+
+      status.textContent =
+        "Veuillez renseigner un SIRET ou un SIREN valide.";
+
+      return;
+    }
+
+    status.className = "";
+
+    status.textContent =
+      "Recherche en cours pour " +
+      identifier.value +
+      "…";
+
+    resultDiv.innerHTML = "";
+
+    try {
+
+      const url =
+        "https://recherche-entreprises.api.gouv.fr/search?q=" +
+        encodeURIComponent(identifier.value) +
+        "&page=1&per_page=10";
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+
+        throw new Error(
+          "Erreur API : " +
+          response.status +
+          " " +
+          response.statusText
+        );
+      }
+
+      const data = await response.json();
+
+      if (!data.results || data.results.length === 0) {
+
+        throw new Error(
+          "Aucune entreprise trouvée pour " +
+          identifier.value
+        );
+      }
+
+      let result = data.results[0];
+
+      // Si recherche par SIRET, on essaie de trouver
+      // exactement le SIRET demandé.
+      if (identifier.type === "SIRET") {
+
+        const exactMatch = data.results.find(function(item) {
+
+          return item.siege &&
+                 item.siege.siret === identifier.value;
+
+        });
+
+        if (exactMatch) {
+          result = exactMatch;
+        }
+      }
+
+      currentResult = result;
+
+      displayResult(result);
+
+      updateBtn.disabled = false;
+
+      status.className = "success";
+
+      status.textContent =
+        "Entreprise trouvée.";
+
+    } catch (error) {
+
+      console.error(error);
+
+      status.className = "error";
+
+      status.textContent =
+        "Erreur lors de la recherche : " +
+        error.message;
+
+    }
   }
 
 
-  if (siege.libelle_voie) {
-    adresse += siege.libelle_voie;
+  // ============================================================
+  // EXTRACTION DES DONNÉES
+  // ============================================================
+
+  function extractCompanyData(result) {
+
+    const siege = result.siege || {};
+
+    let adresse = "";
+
+    if (siege.numero_voie) {
+      adresse += siege.numero_voie + " ";
+    }
+
+    if (siege.type_voie) {
+      adresse += siege.type_voie + " ";
+    }
+
+    if (siege.libelle_voie) {
+      adresse += siege.libelle_voie;
+    }
+
+    adresse = adresse.trim();
+
+    return {
+
+      SIREN:
+        result.siren || "",
+
+      SIRET:
+        siege.siret || "",
+
+      RAISON_SOCIALE:
+        result.nom_complet ||
+        result.nom_raison_sociale ||
+        "",
+
+      SIGLE:
+        result.sigle || "",
+
+      DATE_CREATION:
+        result.date_creation || "",
+
+      DATE_FERMETURE:
+        siege.date_fermeture ||
+        result.date_fermeture ||
+        "",
+
+      CATEGORIE:
+        result.categorie_entreprise || "",
+
+      FORME_JURIDIQUE:
+        result.libelle_nature_juridique ||
+        result.nature_juridique_libelle ||
+        result.nature_juridique ||
+        "",
+
+      APE:
+        siege.activite_principale || "",
+
+      ADRESSE:
+        adresse,
+
+      CODE_POSTAL:
+        siege.code_postal || "",
+
+      VILLE:
+        siege.libelle_commune || ""
+    };
   }
 
 
-  adresse = adresse.trim();
-
-
-  return {
-
-    SIREN:
-      result.siren || "",
-
-    SIRET:
-      siege.siret || "",
-
-    RAISON_SOCIALE:
-      result.nom_complet ||
-      result.nom_raison_sociale ||
-      "",
-
-    SIGLE:
-      result.sigle ||
-      "",
-
-    DATE_CREATION:
-      result.date_creation ||
-      "",
-
-    DATE_FERMETURE:
-      siege.date_fermeture ||
-      result.date_fermeture ||
-      "",
-
-    CATEGORIE:
-      result.categorie_entreprise ||
-      "",
-
-    FORME_JURIDIQUE:
-      result.libelle_nature_juridique ||
-      result.nature_juridique_libelle ||
-      result.nature_juridique ||
-      "",
-
-    APE:
-      siege.activite_principale ||
-      "",
-
-    ADRESSE:
-      adresse,
-
-    CODE_POSTAL:
-      siege.code_postal ||
-      "",
-
-    VILLE:
-      siege.libelle_commune ||
-      ""
-
-  };
-}
-
-
-/* ============================================================
-   AFFICHAGE
-   ============================================================ */
-
-function displayResult(result) {
-
-  const data =
-    extractCompanyData(result);
-
-
-  const rows = [
-
-    ["SIREN", data.SIREN],
-
-    ["SIRET du siège", data.SIRET],
-
-    ["Dénomination", data.RAISON_SOCIALE],
-
-    ["Sigle", data.SIGLE],
-
-    ["Date de création",
-      formatDate(data.DATE_CREATION)],
-
-    ["Date de fermeture",
-      formatDate(data.DATE_FERMETURE)],
-
-    ["Catégorie d'entreprise",
-      data.CATEGORIE],
-
-    ["Forme juridique",
-      data.FORME_JURIDIQUE],
-
-    ["Code APE",
-      data.APE],
-
-    ["Adresse",
-      data.ADRESSE],
-
-    ["Code postal",
-      data.CODE_POSTAL],
-
-    ["Commune",
-      data.VILLE]
-
-  ];
-
-
-  const table =
-    document.getElementById("resultTable");
-
-
-  table.innerHTML = "";
-
-
-  rows.forEach(function(row) {
-
-    const tr =
-      document.createElement("tr");
-
-
-    const td1 =
-      document.createElement("td");
-
-    td1.textContent =
-      row[0];
-
-
-    const td2 =
-      document.createElement("td");
-
-    td2.innerHTML =
-      row[1]
-        ? escapeHtml(row[1])
-        : "<em>—</em>";
-
-
-    tr.appendChild(td1);
-    tr.appendChild(td2);
-
-
-    table.appendChild(tr);
-
-  });
-
-
-  document.getElementById(
-    "result"
-  ).style.display = "block";
-}
-
-
-/* ============================================================
-   MESSAGE
-   ============================================================ */
-
-function showStatus(message, type) {
-
-  const status =
-    document.getElementById("status");
-
-
-  status.textContent =
-    message;
-
-
-  status.className =
-    "status " +
-    (type || "");
-}
-
-
-/* ============================================================
-   MISE A JOUR DE GRIST
-   ============================================================ */
-
-async function updateGrist() {
-
-  if (!currentRecord || !currentResult) {
-
-    showStatus(
-      "Aucune donnée à mettre à jour.",
-      "warning"
-    );
-
-    return;
+  // ============================================================
+  // FORMATAGE DES DATES
+  // ============================================================
+
+  function formatDate(date) {
+
+    if (!date) {
+      return "";
+    }
+
+    // Si ce n'est pas une date YYYY-MM-DD,
+    // on retourne la valeur telle quelle.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return date;
+    }
+
+    const parts = date.split("-");
+
+    return parts[2] + "/" +
+           parts[1] + "/" +
+           parts[0];
   }
 
 
-  const data =
-    extractCompanyData(currentResult);
+  // ============================================================
+  // AFFICHAGE DU RÉSULTAT
+  // ============================================================
 
+  function displayResult(result) {
 
-  const updates = {};
+    const resultDiv = document.getElementById("result");
 
+    const data = extractCompanyData(result);
 
-  /*
-   * SIREN
-   */
-  if (
-    data.SIREN &&
-    isEmpty(currentRecord[COLONNES.SIREN])
-  ) {
+    const rows = [
 
-    updates[COLONNES.SIREN] =
-      data.SIREN;
-  }
+      ["SIREN", data.SIREN],
 
+      ["SIRET du siège", data.SIRET],
 
-  /*
-   * SIRET
-   */
-  if (
-    data.SIRET &&
-    isEmpty(currentRecord[COLONNES.SIRET])
-  ) {
+      ["Dénomination", data.RAISON_SOCIALE],
 
-    updates[COLONNES.SIRET] =
-      data.SIRET;
-  }
+      ["Sigle", data.SIGLE],
 
+      ["Date de création",
+       formatDate(data.DATE_CREATION)],
 
-  /*
-   * Dénomination
-   */
-  if (
-    data.RAISON_SOCIALE &&
-    isEmpty(
-      currentRecord[
-        COLONNES.RAISON_SOCIALE
-      ]
-    )
-  ) {
+      ["Date de fermeture",
+       formatDate(data.DATE_FERMETURE)],
 
-    updates[
-      COLONNES.RAISON_SOCIALE
-    ] =
-      data.RAISON_SOCIALE;
-  }
+      ["Catégorie d'entreprise",
+       data.CATEGORIE],
 
+      ["Forme juridique",
+       data.FORME_JURIDIQUE],
 
-  /*
-   * Sigle
-   */
-  if (
-    data.SIGLE &&
-    isEmpty(
-      currentRecord[
-        COLONNES.SIGLE
-      ]
-    )
-  ) {
+      ["Code APE",
+       data.APE],
 
-    updates[
-      COLONNES.SIGLE
-    ] =
-      data.SIGLE;
-  }
+      ["Adresse",
+       data.ADRESSE],
 
+      ["Code postal",
+       data.CODE_POSTAL],
 
-  /*
-   * Date de création
-   */
-  if (
-    data.DATE_CREATION &&
-    isEmpty(
-      currentRecord[
-        COLONNES.DATE_CREATION
-      ]
-    )
-  ) {
+      ["Commune",
+       data.VILLE]
+    ];
 
-    updates[
-      COLONNES.DATE_CREATION
-    ] =
-      data.DATE_CREATION;
-  }
+    let html = "<table>";
 
+    rows.forEach(function(row) {
 
-  /*
-   * Date de fermeture
-   */
-  if (
-    data.DATE_FERMETURE &&
-    isEmpty(
-      currentRecord[
-        COLONNES.DATE_FERMETURE
-      ]
-    )
-  ) {
-
-    updates[
-      COLONNES.DATE_FERMETURE
-    ] =
-      data.DATE_FERMETURE;
-  }
-
-
-  /*
-   * Catégorie d'entreprise
-   */
-  if (
-    data.CATEGORIE &&
-    isEmpty(
-      currentRecord[
-        COLONNES.CATEGORIE
-      ]
-    )
-  ) {
-
-    updates[
-      COLONNES.CATEGORIE
-    ] =
-      data.CATEGORIE;
-  }
-
-
-  /*
-   * Forme juridique
-   */
-  if (
-    data.FORME_JURIDIQUE &&
-    isEmpty(
-      currentRecord[
-        COLONNES.FORME_JURIDIQUE
-      ]
-    )
-  ) {
-
-    updates[
-      COLONNES.FORME_JURIDIQUE
-    ] =
-      data.FORME_JURIDIQUE;
-  }
-
-
-  /*
-   * APE
-   */
-  if (
-    data.APE &&
-    isEmpty(
-      currentRecord[
-        COLONNES.APE
-      ]
-    )
-  ) {
-
-    updates[
-      COLONNES.APE
-    ] =
-      data.APE;
-  }
-
-
-  /*
-   * Adresse
-   */
-  if (
-    data.ADRESSE &&
-    isEmpty(
-      currentRecord[
-        COLONNES.ADRESSE
-      ]
-    )
-  ) {
-
-    updates[
-      COLONNES.ADRESSE
-    ] =
-      data.ADRESSE;
-  }
-
-
-  /*
-   * Code postal
-   */
-  if (
-    data.CODE_POSTAL &&
-    isEmpty(
-      currentRecord[
-        COLONNES.CODE_POSTAL
-      ]
-    )
-  ) {
-
-    updates[
-      COLONNES.CODE_POSTAL
-    ] =
-      data.CODE_POSTAL;
-  }
-
-
-  /*
-   * Ville
-   */
-  if (
-    data.VILLE &&
-    isEmpty(
-      currentRecord[
-        COLONNES.VILLE
-      ]
-    )
-  ) {
-
-    updates[
-      COLONNES.VILLE
-    ] =
-      data.VILLE;
-  }
-
-
-  /*
-   * Rien à modifier
-   */
-
-  if (
-    Object.keys(updates).length === 0
-  ) {
-
-    showStatus(
-      "Aucune cellule vide à compléter. Les données existantes n'ont pas été modifiées.",
-      "warning"
-    );
-
-    return;
-  }
-
-
-  try {
-
-    /*
-     * Accès à la table du widget
-     */
-    const table =
-      grist.getTable();
-
-
-    /*
-     * Mise à jour de la ligne
-     */
-    await table.update({
-
-      [currentRecord.id]:
-        updates
+      html +=
+        "<tr>" +
+        "<td>" + escapeHtml(row[0]) + "</td>" +
+        "<td>" + escapeHtml(row[1]) + "</td>" +
+        "</tr>";
 
     });
 
+    html += "</table>";
 
-    showStatus(
-      "✓ Grist a été mis à jour (" +
-      Object.keys(updates).length +
-      " champ(s)).",
-      "success"
-    );
+    resultDiv.innerHTML = html;
+  }
 
 
-  } catch (error) {
+  // ============================================================
+  // MISE À JOUR DE GRIST
+  // ============================================================
 
-    console.error(error);
+  async function updateGrist() {
 
-    showStatus(
-      "Erreur lors de la mise à jour de Grist : " +
-      error.message,
-      "error"
+    if (!currentRecord || !currentResult) {
+
+      alert("Aucune donnée à enregistrer.");
+
+      return;
+    }
+
+    try {
+
+      const data =
+        extractCompanyData(currentResult);
+
+      const updates = {};
+
+
+      // SIREN
+      if (
+        data.SIREN &&
+        isEmpty(currentRecord[COLONNES.SIREN])
+      ) {
+        updates[COLONNES.SIREN] = data.SIREN;
+      }
+
+
+      // SIRET
+      if (
+        data.SIRET &&
+        isEmpty(currentRecord[COLONNES.SIRET])
+      ) {
+        updates[COLONNES.SIRET] = data.SIRET;
+      }
+
+
+      // Dénomination
+      if (
+        data.RAISON_SOCIALE &&
+        isEmpty(currentRecord[COLONNES.RAISON_SOCIALE])
+      ) {
+        updates[COLONNES.RAISON_SOCIALE] =
+          data.RAISON_SOCIALE;
+      }
+
+
+      // Sigle
+      if (
+        data.SIGLE &&
+        isEmpty(currentRecord[COLONNES.SIGLE])
+      ) {
+        updates[COLONNES.SIGLE] =
+          data.SIGLE;
+      }
+
+
+      // Date création
+      if (
+        data.DATE_CREATION &&
+        isEmpty(currentRecord[COLONNES.DATE_CREATION])
+      ) {
+        updates[COLONNES.DATE_CREATION] =
+          data.DATE_CREATION;
+      }
+
+
+      // Date fermeture
+      if (
+        data.DATE_FERMETURE &&
+        isEmpty(currentRecord[COLONNES.DATE_FERMETURE])
+      ) {
+        updates[COLONNES.DATE_FERMETURE] =
+          data.DATE_FERMETURE;
+      }
+
+
+      // Catégorie
+      if (
+        data.CATEGORIE &&
+        isEmpty(currentRecord[COLONNES.CATEGORIE])
+      ) {
+        updates[COLONNES.CATEGORIE] =
+          data.CATEGORIE;
+      }
+
+
+      // Forme juridique
+      if (
+        data.FORME_JURIDIQUE &&
+        isEmpty(currentRecord[COLONNES.FORME_JURIDIQUE])
+      ) {
+        updates[COLONNES.FORME_JURIDIQUE] =
+          data.FORME_JURIDIQUE;
+      }
+
+
+      // APE
+      if (
+        data.APE &&
+        isEmpty(currentRecord[COLONNES.APE])
+      ) {
+        updates[COLONNES.APE] =
+          data.APE;
+      }
+
+
+      // Adresse
+      if (
+        data.ADRESSE &&
+        isEmpty(currentRecord[COLONNES.ADRESSE])
+      ) {
+        updates[COLONNES.ADRESSE] =
+          data.ADRESSE;
+      }
+
+
+      // Code postal
+      if (
+        data.CODE_POSTAL &&
+        isEmpty(currentRecord[COLONNES.CODE_POSTAL])
+      ) {
+        updates[COLONNES.CODE_POSTAL] =
+          data.CODE_POSTAL;
+      }
+
+
+      // Ville
+      if (
+        data.VILLE &&
+        isEmpty(currentRecord[COLONNES.VILLE])
+      ) {
+        updates[COLONNES.VILLE] =
+          data.VILLE;
+      }
+
+
+      // Rien à modifier
+      if (Object.keys(updates).length === 0) {
+
+        document.getElementById("status").textContent =
+          "Aucune cellule vide à compléter.";
+
+        return;
+      }
+
+
+      // Écriture dans Grist
+      const table = grist.getTable();
+
+      await table.update({
+        [currentRecord.id]: updates
+      });
+
+
+      document.getElementById("status").className =
+        "success";
+
+      document.getElementById("status").textContent =
+        Object.keys(updates).length +
+        " champ(s) mis à jour dans Grist.";
+
+
+      // Rechargement de l'enregistrement
+      currentRecord =
+        await grist.getTable().getRecord(currentRecord.id);
+
+    } catch (error) {
+
+      console.error(error);
+
+      document.getElementById("status").className =
+        "error";
+
+      document.getElementById("status").textContent =
+        "Erreur lors de la mise à jour : " +
+        error.message;
+    }
+  }
+
+
+  // ============================================================
+  // OUTILS
+  // ============================================================
+
+  function isEmpty(value) {
+
+    return (
+      value === null ||
+      value === undefined ||
+      value === ""
     );
   }
-}
 
 
-/* ============================================================
-   BOUTONS
-   ============================================================ */
+  function escapeHtml(value) {
 
-document
-  .getElementById("searchButton")
-  .addEventListener(
-    "click",
-    searchCompany
-  );
+    if (
+      value === null ||
+      value === undefined
+    ) {
+      return "";
+    }
 
-
-document
-  .getElementById("updateButton")
-  .addEventListener(
-    "click",
-    updateGrist
-  );
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
 
 </script>
 
