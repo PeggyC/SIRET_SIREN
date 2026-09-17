@@ -629,13 +629,21 @@ function displayResult(result) {
 
     ["Code APE / NAF", data.APE],
 
+    ["Date de création", formatDate(data.DATE_CREATION)],
+
+    ["Date de fermeture", formatDate(data.DATE_FERMETURE)],
+
+    ["Catégorie d'entreprise", data.CATEGORIE],
+
+    ["Sigle", data.SIGLE],
+
+    ["Forme juridique", data.FORME_JURIDIQUE],
+    
     ["Adresse", data.ADRESSE],
 
     ["Code postal", data.CODE_POSTAL],
 
-    ["Commune", data.COMMUNE],
-
-    ["État administratif", data.ETAT]
+    ["Ville", data.VILLE],
 
   ];
 
@@ -778,13 +786,13 @@ async function updateGrist() {
   }
 
 
-  // Commune
+  // Ville
   if (
-    data.COMMUNE &&
-    isEmpty(currentRecord[COLONNES.COMMUNE])
+    data.VILLE &&
+    isEmpty(currentRecord[COLONNES.VILLE])
   ) {
-    updates[COLONNES.COMMUNE] =
-      data.COMMUNE;
+    updates[COLONNES.VILLE] =
+      data.VILLE;
   }
 
 
