@@ -657,17 +657,17 @@
       // Rechargement de l'enregistrement
       currentRecord =
         await grist.getTable().updateRecord(currentRecord.id, {
-          SIREN: SIREN,
-          SIRET: SIRET,
-          RAISON_SOCIALE: Dénomination,
-          SIGLE: "Sigle",
-          DATE_CREATION: "date_creation",
-          DATE_FERMETURE: "date_fermeture",
-          CATEGORIE: "categorie_entreprise",
-          FORME_JURIDIQUE: "forme_juridique",
-          APE: "APE",
-          ADRESSE: "Adresse",
-          CODE_POSTAL: "Code_postal",
+          SIREN: data.SIREN,
+          SIRET: data.SIRET,
+          RAISON_SOCIALE: data.RAISON_SOCIALE,
+          SIGLE: data.SIGLE,
+          DATE_CREATION: data.DATE_CREATION,
+          DATE_FERMETURE: data.DATE_FERMETURE,
+          CATEGORIE: data.CATEGORIE,
+          FORME_JURIDIQUE: data.FORME_JURIDIQUE,
+          APE: data.APE,
+          ADRESSE: data.ADRESSE,
+          CODE_POSTAL: data.CODE_POSTAL,
         });
 
     } catch (error) {
