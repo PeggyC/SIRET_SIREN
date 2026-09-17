@@ -645,6 +645,13 @@
         [currentRecord.id]: updates
       });
 
+      // Mise à jour locale de currentRecord 
+      // pour garder le widget synchronisé 
+      // sans utiliser getRecord() ou updateRecord() 
+      Object.assign( 
+        currentRecord, 
+        updates 
+      );     
 
       document.getElementById("status").className =
         "success";
@@ -655,20 +662,20 @@
 
 
       // Rechargement de l'enregistrement
-      currentRecord =
-        await grist.getTable().updateRecord(currentRecord.id, {
-          SIREN: data.SIREN,
-          SIRET: data.SIRET,
-          RAISON_SOCIALE: data.RAISON_SOCIALE,
-          SIGLE: data.SIGLE,
-          DATE_CREATION: data.DATE_CREATION,
-          DATE_FERMETURE: data.DATE_FERMETURE,
-          CATEGORIE: data.CATEGORIE,
-          FORME_JURIDIQUE: data.FORME_JURIDIQUE,
-          APE: data.APE,
-          ADRESSE: data.ADRESSE,
-          CODE_POSTAL: data.CODE_POSTAL,
-        });
+      //currentRecord =
+      //  await grist.getTable().updateRecord(currentRecord.id, {
+      //    SIREN: data.SIREN,
+      //    SIRET: data.SIRET,
+     //     RAISON_SOCIALE: data.RAISON_SOCIALE,
+      //    SIGLE: data.SIGLE,
+      //    DATE_CREATION: data.DATE_CREATION,
+      //    DATE_FERMETURE: data.DATE_FERMETURE,
+      //    CATEGORIE: data.CATEGORIE,
+       //   FORME_JURIDIQUE: data.FORME_JURIDIQUE,
+       //   APE: data.APE,
+       //   ADRESSE: data.ADRESSE,
+       //   CODE_POSTAL: data.CODE_POSTAL,
+       // });
 
     } catch (error) {
 
