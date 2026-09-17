@@ -657,8 +657,13 @@
       console.log("ID utilisé pour la mise à jour :", currentRecordId);
       console.log("Données à écrire : v1 ", updates);
 
+      //await table.update({
+      //  [currentRecordId]: updates
+      //});
+
       await table.update({
-        [currentRecordId]: updates
+        id: currentRecord.id,
+        fields: updates
       });
       
       console.log("Mise à jour Grist terminée");
