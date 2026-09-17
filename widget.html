@@ -35,11 +35,6 @@
       background: #125ca1;
     }
 
-    button:disabled {
-      background: #aaa;
-      cursor: not-allowed;
-    }
-
     #status {
       margin: 15px 0;
       padding: 10px;
@@ -83,7 +78,6 @@
 
   <h2>Recherche entreprise</h2>
 
-
   <button
     id="searchBtn"
     onclick="searchCompany()"
@@ -91,23 +85,11 @@
     🔍 Rechercher
   </button>
 
-
-  <button
-    id="updateBtn"
-    onclick="updateGrist()"
-    disabled
-  >
-    💾 Mettre à jour Grist
-  </button>
-
-
   <div id="status">
     Sélectionnez une ligne contenant un SIRET ou un SIREN.
   </div>
 
-
   <div id="result"></div>
-
 
 
 <script>
@@ -171,8 +153,6 @@ grist.onRecord(function(record) {
   currentRecord = record;
 
   currentResult = null;
-
-  document.getElementById("updateBtn").disabled = true;
 
   updateInterface();
 
@@ -251,9 +231,7 @@ function getIdentifier() {
     currentRecord[COLONNES.SIREN];
 
 
-  // ----------------------------------------------------------
   // SIRET
-  // ----------------------------------------------------------
 
   if (
     siret !== null &&
@@ -279,9 +257,7 @@ function getIdentifier() {
   }
 
 
-  // ----------------------------------------------------------
   // SIREN
-  // ----------------------------------------------------------
 
   if (
     siren !== null &&
@@ -324,15 +300,8 @@ async function searchCompany() {
   const resultDiv =
     document.getElementById("result");
 
-  const updateBtn =
-    document.getElementById("updateBtn");
-
-
-  updateBtn.disabled = true;
-
-  currentResult = null;
-
-  resultDiv.innerHTML = "";
+  const searchBtn =
+    document.getElementById("searchBtn");
 
 
   const identifier =
@@ -351,12 +320,16 @@ async function searchCompany() {
   }
 
 
+  searchBtn.disabled = true;
+
   status.className = "";
 
   status.textContent =
     "Recherche en cours pour " +
     identifier.value +
     "…";
+
+  resultDiv.innerHTML = "";
 
 
   try {
@@ -404,9 +377,7 @@ async function searchCompany() {
       data.results[0];
 
 
-    // --------------------------------------------------------
     // Recherche exacte du SIRET
-    // --------------------------------------------------------
 
     if (identifier.type === "SIRET") {
 
@@ -433,22 +404,23 @@ async function searchCompany() {
     currentResult = result;
 
 
-    console.log(
-      "Résultat API :",
-      result
-    );
-
+    // Affichage
 
     displayResult(result);
 
 
-    updateBtn.disabled = false;
+    // MISE À JOUR AUTOMATIQUE DE LA LIGNE
+
+    const nombreChamps =
+      await updateGrist(result);
 
 
     status.className = "success";
 
     status.textContent =
-      "Entreprise trouvée.";
+      nombreChamps +
+      " champ(s) mis à jour automatiquement dans Grist.";
+
 
   }
 
@@ -460,8 +432,15 @@ async function searchCompany() {
     status.className = "error";
 
     status.textContent =
-      "Erreur lors de la recherche : " +
+      "Erreur : " +
       error.message;
+
+  }
+
+
+  finally {
+
+    searchBtn.disabled = false;
 
   }
 
@@ -478,9 +457,7 @@ function extractCompanyData(result) {
     result.siege || {};
 
 
-  // ----------------------------------------------------------
   // Adresse
-  // ----------------------------------------------------------
 
   let adresse = "";
 
@@ -513,60 +490,52 @@ function extractCompanyData(result) {
     adresse.trim();
 
 
-  // ----------------------------------------------------------
   // Données
-  // ----------------------------------------------------------
 
   return {
 
     SIREN:
       result.siren || "",
 
-
     SIRET:
       siege.siret || "",
-
 
     RAISON_SOCIALE:
       result.nom_complet ||
       result.nom_raison_sociale ||
       "",
 
-
     SIGLE:
       result.sigle || "",
 
-
     DATE_CREATION:
       result.date_creation || "",
-
 
     DATE_FERMETURE:
       siege.date_fermeture ||
       result.date_fermeture ||
       "",
 
-
     CATEGORIE:
       result.categorie_entreprise || "",
 
+    // IMPORTANT :
+    // On conserve le CODE INSEE
+    // ex. 4120
 
     FORME_JURIDIQUE:
       result.libelle_forme_juridique ||
+      result.nature_juridique ||
       "",
-
 
     APE:
       siege.activite_principale || "",
 
-
     ADRESSE:
       adresse,
 
-
     CODE_POSTAL:
       siege.code_postal || "",
-
 
     VILLE:
       siege.libelle_commune || ""
@@ -577,7 +546,7 @@ function extractCompanyData(result) {
 
 
 // ============================================================
-// FORMATAGE DATE
+// FORMATAGE DES DATES
 // ============================================================
 
 function formatDate(date) {
@@ -653,7 +622,7 @@ function displayResult(result) {
     ],
 
     [
-      "Forme juridique",
+      "Forme juridique (code INSEE)",
       data.FORME_JURIDIQUE
     ],
 
@@ -710,366 +679,279 @@ function displayResult(result) {
 
 
 // ============================================================
-// MISE À JOUR DE LA LIGNE GRIST
+// MISE À JOUR AUTOMATIQUE DE LA LIGNE
 // ============================================================
 
-async function updateGrist() {
+async function updateGrist(result) {
 
-  if (
-    !currentRecord ||
-    !currentResult
-  ) {
+  if (!currentRecord) {
 
-    alert(
-      "Aucune donnée à enregistrer."
+    throw new Error(
+      "Aucune ligne Grist sélectionnée."
     );
 
-    return;
+  }
+
+
+  const data =
+    extractCompanyData(result);
+
+
+  const updates = {};
+
+
+  // SIREN
+
+  if (
+    data.SIREN &&
+    isEmpty(
+      currentRecord[COLONNES.SIREN]
+    )
+  ) {
+
+    updates[COLONNES.SIREN] =
+      data.SIREN;
 
   }
 
 
-  try {
+  // SIRET
 
-    const data =
-      extractCompanyData(
-        currentResult
-      );
+  if (
+    data.SIRET &&
+    isEmpty(
+      currentRecord[COLONNES.SIRET]
+    )
+  ) {
 
+    updates[COLONNES.SIRET] =
+      data.SIRET;
 
-    const updates = {};
-
-
-    // --------------------------------------------------------
-    // SIREN
-    // --------------------------------------------------------
-
-    if (
-      data.SIREN &&
-      isEmpty(
-        currentRecord[COLONNES.SIREN]
-      )
-    ) {
-
-      updates[COLONNES.SIREN] =
-        data.SIREN;
-
-    }
+  }
 
 
-    // --------------------------------------------------------
-    // SIRET
-    // --------------------------------------------------------
+  // Dénomination
 
-    if (
-      data.SIRET &&
-      isEmpty(
-        currentRecord[COLONNES.SIRET]
-      )
-    ) {
-
-      updates[COLONNES.SIRET] =
-        data.SIRET;
-
-    }
-
-
-    // --------------------------------------------------------
-    // DÉNOMINATION
-    // --------------------------------------------------------
-
-    if (
-      data.RAISON_SOCIALE &&
-      isEmpty(
-        currentRecord[
-          COLONNES.RAISON_SOCIALE
-        ]
-      )
-    ) {
-
-      updates[
+  if (
+    data.RAISON_SOCIALE &&
+    isEmpty(
+      currentRecord[
         COLONNES.RAISON_SOCIALE
-      ] =
-        data.RAISON_SOCIALE;
+      ]
+    )
+  ) {
 
-    }
+    updates[
+      COLONNES.RAISON_SOCIALE
+    ] =
+      data.RAISON_SOCIALE;
 
-
-    // --------------------------------------------------------
-    // SIGLE
-    // --------------------------------------------------------
-
-    if (
-      data.SIGLE &&
-      isEmpty(
-        currentRecord[COLONNES.SIGLE]
-      )
-    ) {
-
-      updates[COLONNES.SIGLE] =
-        data.SIGLE;
-
-    }
+  }
 
 
-    // --------------------------------------------------------
-    // DATE CRÉATION
-    // --------------------------------------------------------
+  // Sigle
 
-    if (
-      data.DATE_CREATION &&
-      isEmpty(
-        currentRecord[
-          COLONNES.DATE_CREATION
-        ]
-      )
-    ) {
+  if (
+    data.SIGLE &&
+    isEmpty(
+      currentRecord[COLONNES.SIGLE]
+    )
+  ) {
 
-      updates[
+    updates[COLONNES.SIGLE] =
+      data.SIGLE;
+
+  }
+
+
+  // Date création
+
+  if (
+    data.DATE_CREATION &&
+    isEmpty(
+      currentRecord[
         COLONNES.DATE_CREATION
-      ] =
-        data.DATE_CREATION;
+      ]
+    )
+  ) {
 
-    }
+    updates[
+      COLONNES.DATE_CREATION
+    ] =
+      data.DATE_CREATION;
+
+  }
 
 
-    // --------------------------------------------------------
-    // DATE FERMETURE
-    // --------------------------------------------------------
+  // Date fermeture
 
-    if (
-      data.DATE_FERMETURE &&
-      isEmpty(
-        currentRecord[
-          COLONNES.DATE_FERMETURE
-        ]
-      )
-    ) {
-
-      updates[
+  if (
+    data.DATE_FERMETURE &&
+    isEmpty(
+      currentRecord[
         COLONNES.DATE_FERMETURE
-      ] =
-        data.DATE_FERMETURE;
+      ]
+    )
+  ) {
 
-    }
+    updates[
+      COLONNES.DATE_FERMETURE
+    ] =
+      data.DATE_FERMETURE;
+
+  }
 
 
-    // --------------------------------------------------------
-    // CATÉGORIE ENTREPRISE
-    // --------------------------------------------------------
+  // Catégorie
 
-    if (
-      data.CATEGORIE &&
-      isEmpty(
-        currentRecord[
-          COLONNES.CATEGORIE
-        ]
-      )
-    ) {
-
-      updates[
+  if (
+    data.CATEGORIE &&
+    isEmpty(
+      currentRecord[
         COLONNES.CATEGORIE
-      ] =
-        data.CATEGORIE;
+      ]
+    )
+  ) {
 
-    }
+    updates[
+      COLONNES.CATEGORIE
+    ] =
+      data.CATEGORIE;
+
+  }
 
 
-    // --------------------------------------------------------
-    // FORME JURIDIQUE
-    // --------------------------------------------------------
+  // Forme juridique
+  // On conserve le CODE INSEE
 
-    if (
-      data.FORME_JURIDIQUE &&
-      isEmpty(
-        currentRecord[
-          COLONNES.FORME_JURIDIQUE
-        ]
-      )
-    ) {
-
-      updates[
+  if (
+    data.FORME_JURIDIQUE &&
+    isEmpty(
+      currentRecord[
         COLONNES.FORME_JURIDIQUE
-      ] =
-        data.FORME_JURIDIQUE;
+      ]
+    )
+  ) {
 
-    }
+    updates[
+      COLONNES.FORME_JURIDIQUE
+    ] =
+      data.FORME_JURIDIQUE;
 
-
-    // --------------------------------------------------------
-    // APE
-    // --------------------------------------------------------
-
-    if (
-      data.APE &&
-      isEmpty(
-        currentRecord[COLONNES.APE]
-      )
-    ) {
-
-      updates[COLONNES.APE] =
-        data.APE;
-
-    }
+  }
 
 
-    // --------------------------------------------------------
-    // ADRESSE
-    // --------------------------------------------------------
+  // APE
 
-    if (
-      data.ADRESSE &&
-      isEmpty(
-        currentRecord[COLONNES.ADRESSE]
-      )
-    ) {
+  if (
+    data.APE &&
+    isEmpty(
+      currentRecord[COLONNES.APE]
+    )
+  ) {
 
-      updates[COLONNES.ADRESSE] =
-        data.ADRESSE;
+    updates[COLONNES.APE] =
+      data.APE;
 
-    }
+  }
 
 
-    // --------------------------------------------------------
-    // CODE POSTAL
-    // --------------------------------------------------------
+  // Adresse
 
-    if (
-      data.CODE_POSTAL &&
-      isEmpty(
-        currentRecord[
-          COLONNES.CODE_POSTAL
-        ]
-      )
-    ) {
+  if (
+    data.ADRESSE &&
+    isEmpty(
+      currentRecord[COLONNES.ADRESSE]
+    )
+  ) {
 
-      updates[
+    updates[COLONNES.ADRESSE] =
+      data.ADRESSE;
+
+  }
+
+
+  // Code postal
+
+  if (
+    data.CODE_POSTAL &&
+    isEmpty(
+      currentRecord[
         COLONNES.CODE_POSTAL
-      ] =
-        data.CODE_POSTAL;
+      ]
+    )
+  ) {
 
-    }
-
-
-    // --------------------------------------------------------
-    // VILLE
-    // --------------------------------------------------------
-
-    if (
-      data.VILLE &&
-      isEmpty(
-        currentRecord[COLONNES.VILLE]
-      )
-    ) {
-
-      updates[COLONNES.VILLE] =
-        data.VILLE;
-
-    }
-
-
-    // --------------------------------------------------------
-    // AUCUNE MODIFICATION
-    // --------------------------------------------------------
-
-    if (
-      Object.keys(updates).length === 0
-    ) {
-
-      document.getElementById(
-        "status"
-      ).className = "";
-
-
-      document.getElementById(
-        "status"
-      ).textContent =
-        "Aucune cellule vide à compléter. " +
-        "Les données existantes n'ont pas été modifiées.";
-
-
-      return;
-
-    }
-
-
-    // --------------------------------------------------------
-    // ÉCRITURE DANS GRIST
-    // --------------------------------------------------------
-
-    const table =
-      grist.getTable();
-
-
-    await table.update({
-
-      [currentRecord.id]:
-        updates
-
-    });
-
-
-    // --------------------------------------------------------
-    // SUCCÈS
-    // --------------------------------------------------------
-
-    document.getElementById(
-      "status"
-    ).className = "success";
-
-
-    document.getElementById(
-      "status"
-    ).textContent =
-      Object.keys(updates).length +
-      " champ(s) mis à jour dans Grist.";
-
+    updates[
+      COLONNES.CODE_POSTAL
+    ] =
+      data.CODE_POSTAL;
 
   }
 
 
-  catch (error) {
+  // Ville
 
-    console.error(error);
+  if (
+    data.VILLE &&
+    isEmpty(
+      currentRecord[COLONNES.VILLE]
+    )
+  ) {
 
-
-    document.getElementById(
-      "status"
-    ).className = "error";
-
-
-    document.getElementById(
-      "status"
-    ).textContent =
-      "Erreur lors de la mise à jour : " +
-      error.message;
+    updates[COLONNES.VILLE] =
+      data.VILLE;
 
   }
+
+
+  // ----------------------------------------------------------
+  // ÉCRITURE DANS GRIST
+  // ----------------------------------------------------------
+
+  if (
+    Object.keys(updates).length === 0
+  ) {
+
+    return 0;
+
+  }
+
+
+  const table =
+    grist.getTable();
+
+
+  await table.update({
+
+    [currentRecord.id]:
+      updates
+
+  });
+
+
+  return Object.keys(updates).length;
 
 }
 
 
 // ============================================================
-// CELLULE VIDE ?
+// CELLULE VIDE
 // ============================================================
 
 function isEmpty(value) {
 
   return (
-
     value === null ||
-
     value === undefined ||
-
     value === ""
-
   );
 
 }
 
 
 // ============================================================
-// PROTECTION AFFICHAGE HTML
+// PROTECTION HTML
 // ============================================================
 
 function escapeHtml(value) {
