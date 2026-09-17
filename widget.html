@@ -167,14 +167,13 @@
 
 const COLONNES = {
 
-  // Colonne contenant le SIRET
+  // Identifiants
   SIRET: "SIRET",
-
-  // Colonne contenant le SIREN
   SIREN: "SIREN",
 
   // Informations entreprise
   RAISON_SOCIALE: "Dénomination",
+  SIGLE: "Sigle",
   DATE_CREATION: "date_creation",
   DATE_FERMETURE: "date_fermeture",
   CATEGORIE: "categorie_entreprise",
@@ -578,7 +577,13 @@ function extractCompanyData(result) {
       result.categorie_entreprise ||
       "",
 
+/*    FORME_JURIDIQUE:
+      result.nature_juridique ||
+      "",*/
+    
     FORME_JURIDIQUE:
+      result.libelle_nature_juridique ||
+      result.nature_juridique_libelle ||
       result.nature_juridique ||
       "",
 
@@ -586,6 +591,10 @@ function extractCompanyData(result) {
       siege.activite_principale ||
       "",
 
+    SIGLE:
+      result.sigle ||
+      "",
+    
     ADRESSE:
       adresse,
 
