@@ -335,6 +335,8 @@
   // EXTRACTION DES DONNÉES
   // ============================================================
 
+  console.log("CURRENT RESULT :", result);
+  
   function extractCompanyData(result) {
 
     const siege = result.siege || {};
@@ -404,7 +406,8 @@
         siege.libelle_commune || ""
     };
   }
-
+  
+  console.log("DATA EXTRAITE :", data);
 
   // ============================================================
   // FORMATAGE DES DATES
