@@ -612,7 +612,22 @@ function extractCompanyData(result) {
 /* ============================================================
    AFFICHAGE
    ============================================================ */
+  
+function formatDate(date) {
+  if (!date) {
+    return "";
+  }
 
+  // Conversion de YYYY-MM-DD en DD/MM/YYYY
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const [annee, mois, jour] = date.split("-");
+    return `${jour}/${mois}/${annee}`;
+  }
+
+  return date;
+}
+
+  
 function displayResult(result) {
 
   const data =
