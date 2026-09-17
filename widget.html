@@ -156,14 +156,7 @@
 
 /* ============================================================
    CONFIGURATION DES COLONNES GRIST
-   ============================================================
-
-   IMPORTANT :
-   adapte les noms ci-dessous aux noms EXACTS de tes colonnes.
-
-   Par exemple si ta colonne s'appelle "SIRET", laisse "SIRET".
-   Si elle s'appelle "Num_SIRET", remplace "SIRET" par "Num_SIRET".
-*/
+   ============================================================ */
 
 const COLONNES = {
 
@@ -212,6 +205,8 @@ grist.onRecord(function(record) {
   currentRecord = record;
   currentResult = null;
 
+  document.getElementById("result").style.display = "none";
+
   updateInterface();
 
 });
@@ -227,9 +222,6 @@ function cleanNumber(value) {
     return "";
   }
 
-  /*
-   * Retire les espaces, tirets, etc.
-   */
   return String(value).replace(/\D/g, "");
 }
 
@@ -264,6 +256,31 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 
+}
+
+
+/* ============================================================
+   FORMATAGE DES DATES
+   ============================================================ */
+
+function formatDate(date) {
+
+  if (!date) {
+    return "";
+  }
+
+  /*
+   * Conversion de YYYY-MM-DD
+   * vers DD/MM/YYYY
+   */
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+
+    const [annee, mois, jour] = date.split("-");
+
+    return `${jour}/${mois}/${annee}`;
+  }
+
+  return date;
 }
 
 
@@ -314,12 +331,7 @@ function getIdentifier() {
   }
 
 
-  /*
-   * Rien trouvé
-   */
-
   return null;
-
 }
 
 
@@ -329,7 +341,8 @@ function getIdentifier() {
 
 function updateInterface() {
 
-  const selected = document.getElementById("selected");
+  const selected =
+    document.getElementById("selected");
 
   const searchButton =
     document.getElementById("searchButton");
@@ -350,7 +363,8 @@ function updateInterface() {
   }
 
 
-  const identifier = getIdentifier();
+  const identifier =
+    getIdentifier();
 
 
   if (!identifier) {
@@ -376,7 +390,6 @@ function updateInterface() {
 
   searchButton.disabled = false;
   updateButton.disabled = !currentResult;
-
 }
 
 
@@ -386,7 +399,8 @@ function updateInterface() {
 
 async function searchCompany() {
 
-  const identifier = getIdentifier();
+  const identifier =
+    getIdentifier();
 
 
   if (!identifier) {
@@ -411,16 +425,12 @@ async function searchCompany() {
 
   currentResult = null;
 
+  document.getElementById(
+    "updateButton"
+  ).disabled = true;
+
 
   try {
-
-    /*
-     * API officielle :
-     *
-     * https://recherche-entreprises.api.gouv.fr/search
-     *
-     * Pour un SIRET ou SIREN, q suffit.
-     */
 
     const url =
       "https://recherche-entreprises.api.gouv.fr/search" +
@@ -463,16 +473,16 @@ async function searchCompany() {
 
 
     /*
-     * Pour une recherche directe SIREN/SIRET,
-     * le premier résultat est normalement le bon.
-     *
-     * On vérifie quand même le SIRET lorsqu'on
-     * en a fourni un.
+     * Premier résultat par défaut
      */
+    let result =
+      data.results[0];
 
-    let result = data.results[0];
 
-
+    /*
+     * Pour un SIRET :
+     * recherche d'une correspondance exacte
+     */
     if (identifier.type === "SIRET") {
 
       const exactMatch =
@@ -490,7 +500,6 @@ async function searchCompany() {
       if (exactMatch) {
         result = exactMatch;
       }
-
     }
 
 
@@ -522,7 +531,6 @@ async function searchCompany() {
     );
 
   }
-
 }
 
 
@@ -532,22 +540,31 @@ async function searchCompany() {
 
 function extractCompanyData(result) {
 
-  const siege = result.siege || {};
+  const siege =
+    result.siege || {};
 
-  // Construction de l'adresse
+
+  /*
+   * Construction de l'adresse
+   */
+
   let adresse = "";
+
 
   if (siege.numero_voie) {
     adresse += siege.numero_voie + " ";
   }
 
+
   if (siege.type_voie) {
     adresse += siege.type_voie + " ";
   }
 
+
   if (siege.libelle_voie) {
     adresse += siege.libelle_voie;
   }
+
 
   adresse = adresse.trim();
 
@@ -565,22 +582,23 @@ function extractCompanyData(result) {
       result.nom_raison_sociale ||
       "",
 
+    SIGLE:
+      result.sigle ||
+      "",
+
     DATE_CREATION:
       result.date_creation ||
       "",
 
     DATE_FERMETURE:
       siege.date_fermeture ||
+      result.date_fermeture ||
       "",
 
     CATEGORIE:
       result.categorie_entreprise ||
       "",
 
-/*    FORME_JURIDIQUE:
-      result.nature_juridique ||
-      "",*/
-    
     FORME_JURIDIQUE:
       result.libelle_nature_juridique ||
       result.nature_juridique_libelle ||
@@ -591,10 +609,6 @@ function extractCompanyData(result) {
       siege.activite_principale ||
       "",
 
-    SIGLE:
-      result.sigle ||
-      "",
-    
     ADRESSE:
       adresse,
 
@@ -609,25 +623,11 @@ function extractCompanyData(result) {
   };
 }
 
+
 /* ============================================================
    AFFICHAGE
    ============================================================ */
-  
-function formatDate(date) {
-  if (!date) {
-    return "";
-  }
 
-  // Conversion de YYYY-MM-DD en DD/MM/YYYY
-  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    const [annee, mois, jour] = date.split("-");
-    return `${jour}/${mois}/${annee}`;
-  }
-
-  return date;
-}
-
-  
 function displayResult(result) {
 
   const data =
@@ -640,25 +640,33 @@ function displayResult(result) {
 
     ["SIRET du siège", data.SIRET],
 
-    ["Raison sociale", data.RAISON_SOCIALE],
-
-    ["Code APE / NAF", data.APE],
-
-    ["Date de création", formatDate(data.DATE_CREATION)],
-
-    ["Date de fermeture", formatDate(data.DATE_FERMETURE)],
-
-    ["Catégorie d'entreprise", data.CATEGORIE],
+    ["Dénomination", data.RAISON_SOCIALE],
 
     ["Sigle", data.SIGLE],
 
-    ["Forme juridique", data.FORME_JURIDIQUE],
-    
-    ["Adresse", data.ADRESSE],
+    ["Date de création",
+      formatDate(data.DATE_CREATION)],
 
-    ["Code postal", data.CODE_POSTAL],
+    ["Date de fermeture",
+      formatDate(data.DATE_FERMETURE)],
 
-    ["Ville", data.VILLE],
+    ["Catégorie d'entreprise",
+      data.CATEGORIE],
+
+    ["Forme juridique",
+      data.FORME_JURIDIQUE],
+
+    ["Code APE",
+      data.APE],
+
+    ["Adresse",
+      data.ADRESSE],
+
+    ["Code postal",
+      data.CODE_POSTAL],
+
+    ["Commune",
+      data.VILLE]
 
   ];
 
@@ -704,7 +712,6 @@ function displayResult(result) {
   document.getElementById(
     "result"
   ).style.display = "block";
-
 }
 
 
@@ -725,7 +732,6 @@ function showStatus(message, type) {
   status.className =
     "status " +
     (type || "");
-
 }
 
 
@@ -733,98 +739,252 @@ function showStatus(message, type) {
    MISE A JOUR DE GRIST
    ============================================================ */
 
-
 async function updateGrist() {
 
   if (!currentRecord || !currentResult) {
+
+    showStatus(
+      "Aucune donnée à mettre à jour.",
+      "warning"
+    );
+
     return;
   }
 
-  const data = extractCompanyData(currentResult);
+
+  const data =
+    extractCompanyData(currentResult);
+
 
   const updates = {};
 
 
-  // SIREN
+  /*
+   * SIREN
+   */
   if (
     data.SIREN &&
     isEmpty(currentRecord[COLONNES.SIREN])
   ) {
-    updates[COLONNES.SIREN] = data.SIREN;
+
+    updates[COLONNES.SIREN] =
+      data.SIREN;
   }
 
 
-  // SIRET
+  /*
+   * SIRET
+   */
   if (
     data.SIRET &&
     isEmpty(currentRecord[COLONNES.SIRET])
   ) {
-    updates[COLONNES.SIRET] = data.SIRET;
+
+    updates[COLONNES.SIRET] =
+      data.SIRET;
   }
 
 
-  // Raison sociale
+  /*
+   * Dénomination
+   */
   if (
     data.RAISON_SOCIALE &&
-    isEmpty(currentRecord[COLONNES.RAISON_SOCIALE])
+    isEmpty(
+      currentRecord[
+        COLONNES.RAISON_SOCIALE
+      ]
+    )
   ) {
-    updates[COLONNES.RAISON_SOCIALE] =
+
+    updates[
+      COLONNES.RAISON_SOCIALE
+    ] =
       data.RAISON_SOCIALE;
   }
 
 
-  // APE
+  /*
+   * Sigle
+   */
+  if (
+    data.SIGLE &&
+    isEmpty(
+      currentRecord[
+        COLONNES.SIGLE
+      ]
+    )
+  ) {
+
+    updates[
+      COLONNES.SIGLE
+    ] =
+      data.SIGLE;
+  }
+
+
+  /*
+   * Date de création
+   */
+  if (
+    data.DATE_CREATION &&
+    isEmpty(
+      currentRecord[
+        COLONNES.DATE_CREATION
+      ]
+    )
+  ) {
+
+    updates[
+      COLONNES.DATE_CREATION
+    ] =
+      data.DATE_CREATION;
+  }
+
+
+  /*
+   * Date de fermeture
+   */
+  if (
+    data.DATE_FERMETURE &&
+    isEmpty(
+      currentRecord[
+        COLONNES.DATE_FERMETURE
+      ]
+    )
+  ) {
+
+    updates[
+      COLONNES.DATE_FERMETURE
+    ] =
+      data.DATE_FERMETURE;
+  }
+
+
+  /*
+   * Catégorie d'entreprise
+   */
+  if (
+    data.CATEGORIE &&
+    isEmpty(
+      currentRecord[
+        COLONNES.CATEGORIE
+      ]
+    )
+  ) {
+
+    updates[
+      COLONNES.CATEGORIE
+    ] =
+      data.CATEGORIE;
+  }
+
+
+  /*
+   * Forme juridique
+   */
+  if (
+    data.FORME_JURIDIQUE &&
+    isEmpty(
+      currentRecord[
+        COLONNES.FORME_JURIDIQUE
+      ]
+    )
+  ) {
+
+    updates[
+      COLONNES.FORME_JURIDIQUE
+    ] =
+      data.FORME_JURIDIQUE;
+  }
+
+
+  /*
+   * APE
+   */
   if (
     data.APE &&
-    isEmpty(currentRecord[COLONNES.APE])
+    isEmpty(
+      currentRecord[
+        COLONNES.APE
+      ]
+    )
   ) {
-    updates[COLONNES.APE] = data.APE;
+
+    updates[
+      COLONNES.APE
+    ] =
+      data.APE;
   }
 
 
-  // Adresse
+  /*
+   * Adresse
+   */
   if (
     data.ADRESSE &&
-    isEmpty(currentRecord[COLONNES.ADRESSE])
+    isEmpty(
+      currentRecord[
+        COLONNES.ADRESSE
+      ]
+    )
   ) {
-    updates[COLONNES.ADRESSE] = data.ADRESSE;
+
+    updates[
+      COLONNES.ADRESSE
+    ] =
+      data.ADRESSE;
   }
 
 
-  // Code postal
+  /*
+   * Code postal
+   */
   if (
     data.CODE_POSTAL &&
-    isEmpty(currentRecord[COLONNES.CODE_POSTAL])
+    isEmpty(
+      currentRecord[
+        COLONNES.CODE_POSTAL
+      ]
+    )
   ) {
-    updates[COLONNES.CODE_POSTAL] =
+
+    updates[
+      COLONNES.CODE_POSTAL
+    ] =
       data.CODE_POSTAL;
   }
 
 
-  // Ville
+  /*
+   * Ville
+   */
   if (
     data.VILLE &&
-    isEmpty(currentRecord[COLONNES.VILLE])
+    isEmpty(
+      currentRecord[
+        COLONNES.VILLE
+      ]
+    )
   ) {
-    updates[COLONNES.VILLE] =
+
+    updates[
+      COLONNES.VILLE
+    ] =
       data.VILLE;
   }
 
 
-  // Etat administratif
+  /*
+   * Rien à modifier
+   */
+
   if (
-    data.ETAT &&
-    isEmpty(currentRecord[COLONNES.ETAT])
+    Object.keys(updates).length === 0
   ) {
-    updates[COLONNES.ETAT] =
-      data.ETAT;
-  }
-
-
-  if (Object.keys(updates).length === 0) {
 
     showStatus(
-      "Aucune cellule vide à compléter.",
+      "Aucune cellule vide à compléter. Les données existantes n'ont pas été modifiées.",
       "warning"
     );
 
@@ -835,17 +995,27 @@ async function updateGrist() {
   try {
 
     /*
-     * selectedTable.update() met à jour la ligne
-     * sélectionnée dans la table du widget.
+     * Accès à la table du widget
      */
+    const table =
+      grist.getTable();
 
-    await grist.selectedTable.update({
-      [currentRecord.id]: updates
+
+    /*
+     * Mise à jour de la ligne
+     */
+    await table.update({
+
+      [currentRecord.id]:
+        updates
+
     });
 
 
     showStatus(
-      "✓ Grist a été mis à jour.",
+      "✓ Grist a été mis à jour (" +
+      Object.keys(updates).length +
+      " champ(s)).",
       "success"
     );
 
@@ -861,9 +1031,6 @@ async function updateGrist() {
     );
   }
 }
-
-
-  
 
 
 /* ============================================================
